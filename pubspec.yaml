@@ -12,7 +12,7 @@ dependencies:
   flutter:
     sdk: flutter
   health: ^3.4.4
-
+  intl: ^0.17.0
   cupertino_icons: ^1.0.2
 
 dev_dependencies:

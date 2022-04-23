@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:health/health.dart';
+import 'package:intl/intl.dart';
 
 void main() => runApp(HealthApp());
 
@@ -57,19 +59,15 @@ class _HealthAppState extends State<HealthApp> {
     // requesting access to the data types before reading them
     // note that strictly speaking, the [permissions] are not
     // needed, since we only want READ access.
-    bool requested =
-    await health.requestAuthorization(types, permissions: permissions);
+    bool requested = await health.requestAuthorization(types, permissions: permissions);
 
     if (requested) {
       try {
         // fetch health data
-        List<HealthDataPoint> healthData =
-        await health.getHealthDataFromTypes(sixDayAgo, now, types);
+        List<HealthDataPoint> healthData = await health.getHealthDataFromTypes(sixDayAgo, now, types);
 
         // save all the new data points (only the first 100)
-        _healthDataList.addAll((healthData.length < 100)
-            ? healthData
-            : healthData.sublist(0, 100));
+        _healthDataList.addAll((healthData.length < 100) ? healthData : healthData.sublist(0, 100));
       } catch (error) {
         print("Exception in getHealthDataFromTypes: $error");
       }
@@ -77,13 +75,36 @@ class _HealthAppState extends State<HealthApp> {
       // filter out duplicates
       _healthDataList = HealthFactory.removeDuplicates(_healthDataList);
 
+      LinkedHashMap linkedHashMap = LinkedHashMap<String, StepByDay>();
+
       // print the results
-      _healthDataList.forEach((x) => print(x));
+      _healthDataList.forEach((x) {
+        //format theo định dạng năm-tháng-ngày
+        DateTime format = x.dateFrom;
+        String formattedDate = DateFormat('yyyy-MM-dd').format(format);
+
+        //formattedDate ở đây là key, sẽ dựa vào nó để group những giá trị mà health trả về
+        if (linkedHashMap.containsKey(formattedDate)) {
+          //lấy ra Object mà chứa cái key đó
+          StepByDay stepByDay = linkedHashMap[formattedDate];
+          //cộng dồn giá trị
+          stepByDay.step += x.value;
+          //save lại bằng cách put nó vào map
+          linkedHashMap.putIfAbsent(formattedDate, () => stepByDay);
+        } else {
+          //nếu chưa có key tuwogn ứng, ta thêm nó vào map với giá trị là số bước mà phần tử x tả về
+          linkedHashMap.putIfAbsent(formattedDate, () => StepByDay(step: x.value));
+        }
+
+      });
+
+      linkedHashMap.forEach((key, value) {
+        print('key ==  ${key} ------      value ==   ${value.step}');
+      });
 
       // update the UI to display the results
       setState(() {
-        _state =
-        _healthDataList.isEmpty ? AppState.NO_DATA : AppState.DATA_READY;
+        _state = _healthDataList.isEmpty ? AppState.NO_DATA : AppState.DATA_READY;
       });
     } else {
       print("Authorization not granted");
@@ -99,23 +120,17 @@ class _HealthAppState extends State<HealthApp> {
     _nofSteps = Random().nextInt(10);
     final types = [HealthDataType.STEPS, HealthDataType.BLOOD_GLUCOSE];
     final rights = [HealthDataAccess.WRITE, HealthDataAccess.WRITE];
-    final permissions = [
-      HealthDataAccess.READ_WRITE,
-      HealthDataAccess.READ_WRITE
-    ];
-    bool? hasPermissions =
-    await HealthFactory.hasPermissions(types, permissions: rights);
+    final permissions = [HealthDataAccess.READ_WRITE, HealthDataAccess.READ_WRITE];
+    bool? hasPermissions = await HealthFactory.hasPermissions(types, permissions: rights);
     if (hasPermissions == false) {
       await health.requestAuthorization(types, permissions: permissions);
     }
 
     _mgdl = Random().nextInt(10) * 1.0;
-    bool success = await health.writeHealthData(
-        _nofSteps.toDouble(), HealthDataType.STEPS, earlier, now);
+    bool success = await health.writeHealthData(_nofSteps.toDouble(), HealthDataType.STEPS, earlier, now);
 
     if (success) {
-      success = await health.writeHealthData(
-          _mgdl, HealthDataType.BLOOD_GLUCOSE, now, now);
+      success = await health.writeHealthData(_mgdl, HealthDataType.BLOOD_GLUCOSE, now, now);
     }
 
     setState(() {
@@ -264,4 +279,11 @@ class _HealthAppState extends State<HealthApp> {
           )),
     );
   }
+}
+
+class StepByDay {
+  num step;
+  //cần thêm field nào thì có thể viết thêm
+
+  StepByDay({this.step = 0});
 }
