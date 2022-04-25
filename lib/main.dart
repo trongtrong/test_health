@@ -26,6 +26,7 @@ enum AppState {
 
 class _HealthAppState extends State<HealthApp> {
   List<HealthDataPoint> _healthDataList = [];
+  LinkedHashMap linkedHashMap = LinkedHashMap<String, StepByDay>();
   AppState _state = AppState.DATA_NOT_FETCHED;
   int _nofSteps = 10;
   double _mgdl = 10.0;
@@ -74,8 +75,6 @@ class _HealthAppState extends State<HealthApp> {
 
       // filter out duplicates
       _healthDataList = HealthFactory.removeDuplicates(_healthDataList);
-
-      LinkedHashMap linkedHashMap = LinkedHashMap<String, StepByDay>();
 
       // print the results
       _healthDataList.forEach((x) {
@@ -185,13 +184,13 @@ class _HealthAppState extends State<HealthApp> {
 
   Widget _contentDataReady() {
     return ListView.builder(
-        itemCount: _healthDataList.length,
+        itemCount: linkedHashMap.length,
         itemBuilder: (_, index) {
-          HealthDataPoint p = _healthDataList[index];
+          // HealthDataPoint p = _healthDataList[index];
+          String key = linkedHashMap.keys.elementAt(index);
+          StepByDay step = linkedHashMap[key];
           return ListTile(
-            title: Text("${p.typeString}: ${p.value}"),
-            trailing: Text('${p.unitString}'),
-            subtitle: Text('${p.dateFrom} - ${p.dateTo}'),
+            title: Text("${key}: ${step.step}"),
           );
         });
   }
